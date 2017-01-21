@@ -254,8 +254,17 @@ void (*orig_exit_group)(int);
  */
 void my_exit_group(int status)
 {
+	//prevent other threads from accessing the resource
+	spin_lock(&my_table_lock);
 
+	//remove the pid from all lists
+	del_pid(current->pid);
 
+	//set the lock to available
+	spin_unlock(&my_table_lock);
+
+	//call the original exit_group function
+	orig_exit_group(status);
 
 }
 //----------------------------------------------------------------
@@ -343,7 +352,12 @@ asmlinkage long interceptor(struct pt_regs reg) {
  */
 asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 
+	//check if the syscall argument is valid
+	if((syscall == MY_CUSTOM_SYSCALL) || (syscall < 0) || (syscall > NR_syscalls)){
+		return -EINVAL;
+	}
 
+	//
 
 
 

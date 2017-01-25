@@ -293,7 +293,7 @@ asmlinkage long interceptor(struct pt_regs reg) {
         log_message(curr_pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp);
     };
     return table[reg.ax].f(reg);
-}
+
 }
 
 /**

@@ -220,7 +220,12 @@ int main(int argc, char **argv) {
 	   Feel free to add more tests here for other system calls, 
 	   once you get everything to work; check Linux documentation
 	   for other syscall number definitions.  */
+	test_syscall(1);
+        test_syscall(2);
+        test_syscall(3);
+        test_syscall(4);
 
+        test_syscall(2);
 	test("rmmod interceptor.ko %s", "", system("rmmod interceptor") == 0);
 	return 0;
 }

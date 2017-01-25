@@ -286,9 +286,13 @@ asmlinkage long interceptor(struct pt_regs reg) {
 
     pid_t curr_pid = current->pid;
     int monitor = table[reg.ax].monitored;
+
+    //log the message if current pid are being monitored for a specific syscall, 
+    //which monitors some pids but not all of them
     if ((monitor == 1) && (check_pid_monitored(reg.ax, curr_pid) == 1)) {
     	log_message(curr_pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp);
     }
+    //log the message if all pids are being monitored for a syscall
     else if ((monitor == 2) && (check_pid_monitored(reg.ax, curr_pid) == 0)) {
         log_message(curr_pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp);
     };
@@ -477,8 +481,22 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
         if (table[syscall].monitored == 0){
             return -EINVAL;
         }
-	if (table[syscall].monitored != 2 && check_pid_monitored(syscall, pid) == 0) {
-            return -EINVAL;
+	    
+        //for the bonus if the syscall is monitoring all pids, 
+        //then we add the pid we want to stop monitoring to the blacklist,
+        //in other word, the sysc's list is a blacklist if this syscall monitors all pids,
+        //we will only log message for pids which are not in the black list
+        if (table[syscall].monitored != 2 && check_pid_monitored(syscall, pid) == 0) {
+            spin_lock(&my_table_lock);
+
+            //check for no memory error when adding a pid to the blacklist
+            if (add_pid_sysc(pid, syscall) != 0){
+                spin_unlock(&my_table_lock);
+                return -ENOMEM;
+            }
+
+            table[syscall].monitored = 2;
+            spin_unlock(&my_table_lock);
         }
 
         //stop monitoring all pids
@@ -533,6 +551,8 @@ static int init_function(void) {
     int i;
     orig_custom_syscall = sys_call_table[MY_CUSTOM_SYSCALL];
     orig_exit_group = sys_call_table[__NR_exit_group];
+
+    //hijacking required original syscalls in sys_call_table
     spin_lock(&sys_call_table_lock);
     set_addr_rw((unsigned long)sys_call_table);
     sys_call_table[MY_CUSTOM_SYSCALL] = &my_syscall;
@@ -540,6 +560,7 @@ static int init_function(void) {
     set_addr_ro((unsigned long)sys_call_table);
     spin_unlock(&sys_call_table_lock);
 
+    //initialize my syscall table
     for(i = 0; i < NR_syscalls; i++){
         INIT_LIST_HEAD(&(table[i].my_list));
         table[i].intercepted = 0;
@@ -565,10 +586,13 @@ static void exit_function(void)
 {        
 
     int i;
+
+    //destroying list for all syscalls in my table
     for (i = 0; i < NR_syscalls; i++) {
         destroy_list(i);
     }
 
+    //restoring the syscalls in syscall table
     spin_lock(&sys_call_table_lock);
     set_addr_rw((unsigned long)sys_call_table);
     sys_call_table[MY_CUSTOM_SYSCALL] = orig_custom_syscall;

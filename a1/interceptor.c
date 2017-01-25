@@ -284,12 +284,16 @@ void my_exit_group(int status)
  */
 asmlinkage long interceptor(struct pt_regs reg) {
 
-	//the syscall is being monitored for the current->pid
-	if(check_pid_monitored(reg.ax, current->pid) == 0) {
-		log_message(current->pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp);
-	}
-
-	return table[reg.ax].f(reg); 
+    pid_t curr_pid = current->pid;
+    int monitor = table[reg.ax].monitored;
+    if ((monitor == 1) && (check_pid_monitored(reg.ax, curr_pid) == 1)) {
+    	log_message(curr_pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp);
+    }
+    else if ((monitor == 2) && (check_pid_monitored(reg.ax, curr_pid) == 0)) {
+        log_message(curr_pid, reg.ax, reg.bx, reg.cx, reg.dx, reg.si, reg.di, reg.bp);
+    };
+    return table[reg.ax].f(reg);
+}
 }
 
 /**

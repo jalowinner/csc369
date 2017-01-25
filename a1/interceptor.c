@@ -493,10 +493,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
 
             if (table[syscall].monitored == 1) {
                 spin_lock(&my_table_lock);
-                if(del_pid_sysc(pid, syscall) != 0){
-                    spin_unlock(&my_table_lock);
-                    return -EINVAL;
-                }
+                del_pid_sysc(pid, syscall);
                 spin_unlock(&my_table_lock);
             }
 

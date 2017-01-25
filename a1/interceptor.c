@@ -374,7 +374,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
         set_addr_rw((unsigned long)sys_call_table);
         sys_call_table[syscall] = &interceptor;
         set_addr_ro((unsigned long)sys_call_table);
-        spin_lock(&sys_call_table_lock);
+        spin_unlock(&sys_call_table_lock);
     }
 
     //for command REQUEST_SYSCALL_RELEASE
@@ -394,7 +394,7 @@ asmlinkage long my_syscall(int cmd, int syscall, int pid) {
         set_addr_rw((unsigned long)sys_call_table);
         sys_call_table[syscall] = table[syscall].f;
         set_addr_ro((unsigned long)sys_call_table);
-        spin_lock(&sys_call_table_lock);
+        spin_unlock(&sys_call_table_lock);
 
         //this syscall is no longer intercepted, clear the list of monitored pid
         spin_lock(&my_table_lock);
